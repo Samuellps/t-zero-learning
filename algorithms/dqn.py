@@ -123,7 +123,13 @@ class ReplayBuffer:
 
         """
         # ==================== YOUR CODE HERE (Part 1a) ====================
-        raise NotImplementedError("Implement ReplayBuffer.add")
+        self.observations[self.pos] = obs
+        self.next_observations[self.pos] = next_obs
+        self.actions[self.pos] = action
+        self.rewards[self.pos] = reward
+        self.dones[self.pos] = done
+        self.pos = (self.pos + 1) % self.capacity           # circular: sobrescreve o mais antigo
+        self.size = min(self.size + 1, self.capacity)
         # ==================================================================
 
     def sample(self, batch_size: int) -> Batch:
@@ -135,7 +141,15 @@ class ReplayBuffer:
 
         """
         # ==================== YOUR CODE HERE (Part 1b) ====================
-        raise NotImplementedError("Implement ReplayBuffer.sample")
+        idx = np.random.randint(0, self.size, size=batch_size)  # uniforme, com reposicao, so slots validos
+        to_t = lambda x: torch.as_tensor(x[idx], device=self.device)
+        return Batch(
+            observations=to_t(self.observations),
+            actions=to_t(self.actions),
+            next_observations=to_t(self.next_observations),
+            rewards=to_t(self.rewards),
+            dones=to_t(self.dones),
+        )
         # ==================================================================
 
 
@@ -144,7 +158,9 @@ def compute_td_targets(target_network, batch: Batch, gamma: float) -> torch.Tens
 
     """
     # ===================== YOUR CODE HERE (Part 2) =====================
-    raise NotImplementedError("Implement compute_td_targets")
+    # y = r + gamma * max_a' Q_target(s', a') * (1 - done)   -> shape (B,)
+    next_q_max, _ = target_network(batch.next_observations).max(dim=1)
+    return batch.rewards.flatten() + gamma * next_q_max * (1.0 - batch.dones.flatten())
     # ===================================================================
 
 
